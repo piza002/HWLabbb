@@ -1,0 +1,52 @@
+String first;
+String second;
+String last;
+int Hour;
+int Min;
+int Sec;
+int checkSplit = 0;
+void setup() {
+  Serial.begin(115200);
+  first = "22:18:30";
+  second = "23:00:00";
+  for(int i=0;i<first.length();i++)
+  {
+    if(first.charAt(i)==':' && checkSplit == 0)
+    {
+      Hour = first.substring(0,i).toInt();
+      checkSplit++;
+    }
+    else if(first.charAt(i)==':' && checkSplit == 1)
+    {
+      Min = first.substring(i-2,i).toInt();
+    }
+    else if(i==first.length()-1)
+    {
+      Sec = first.substring(i-1,i+1).toInt();
+      checkSplit=0;
+    }
+  }
+  for(int i=0;i<second.length();i++)
+  {
+    if(second.charAt(i)==':' && checkSplit == 0)
+    {
+      Hour = second.substring(0,i).toInt()-Hour-1;
+      checkSplit++;
+    }
+    else if(second.charAt(i)==':' && checkSplit == 1)
+    {
+      Min = second.substring(i-2,i).toInt()+59-Min;
+    }
+    else if(i==second.length()-1)
+    {
+      Sec = second.substring(i-1,i+1).toInt()+60-Sec;
+      checkSplit=0;
+    }
+  }
+  last = String(Hour) + ":" + String(Min) + ":" + String(Sec);
+  Serial.println(last);
+}
+
+void loop() 
+{
+}
