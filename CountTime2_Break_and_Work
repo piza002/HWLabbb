@@ -1,145 +1,104 @@
-volatile int workCounter;
-volatile int breakCounter;
-int wMin=0;
-int wSec=0;
-int wHour=0;
-int bMin=0;
-int bSec=0;
-int bHour=0;
-int flag=0; //บรรทัดนี้รับค่าฟังก์ชั่นจากการแตะบัตรมี 3 เหตุการ์ณ default 0 , work 1 , break 2 , break toilet 3
-String wSum; //work sum
-String bSum; //break sum
-String btSum; //break toilet sum
+volatile int timeCounter;
+int tMin=0;
+int tSec=0;
+int tHour=0;
+int checkSplit=0;
+int flag=0; //บรรทัดนี้รับค่าฟังก์ชั่นจากการแตะบัตรมี 4 เหตุการ์ณ stop,default 0 , work 1 , break 2 , break toilet 3
+String wSum=""; //work sum
+String bSum=""; //break sum
+String btSum=""; //break toilet sum
 hw_timer_t * timer = NULL;
-hw_timer_t * timer2 = NULL;
 portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
  
-void IRAM_ATTR onWork() {
+void IRAM_ATTR onTimer() {
   portENTER_CRITICAL_ISR(&timerMux);
-  workCounter++;
+  timeCounter++;
   portEXIT_CRITICAL_ISR(&timerMux);
 }
-void IRAM_ATTR onBreak() {
-  portENTER_CRITICAL_ISR(&timerMux);
-  breakCounter++;
-  portEXIT_CRITICAL_ISR(&timerMux);
-}
-void WorktimeCount(){
-  if (workCounter > 0) {
- 
-    portENTER_CRITICAL(&timerMux);
-    workCounter--;
-    portEXIT_CRITICAL(&timerMux);
- 
-    if(wSec<59)
+void timeCount(int flag , String sum){
+  if(sum.length() > 0)
+  {
+    for(int i=0;i<sum.length();i++)
     {
-      wSec++;
-    }
-    else
-    {
-      wSec=0;
-      if(wMin<59)
+      if(sum.charAt(i)==':' && checkSplit == 0)
       {
-        wMin++;
+        tHour = sum.substring(0,i).toInt();
+        checkSplit++;
       }
-      else
+      else if(sum.charAt(i)==':' && checkSplit == 1)
       {
-        wMin=0;
-        wHour++;
+        tMin = sum.substring(i-2,i).toInt();
       }
-    }
-    wSum = String(wHour)+":"+String(wMin)+":"+String(wSec);
-    Serial.print("Work Time : ");
-    Serial.println(wSum);
+      else if(i==sum.length()-1)
+      {
+        tSec = sum.substring(i-1,i+1).toInt();
+        checkSplit=0;
+      }
+    } 
   }
-}
-void BreaktimeCount(int flag){
-  if (breakCounter > 0) {
- 
+  if (timeCounter > 0) {
     portENTER_CRITICAL(&timerMux);
-    breakCounter--;
+    timeCounter--;
     portEXIT_CRITICAL(&timerMux);
- 
-    if(bSec<59)
+    if(tSec<59)
     {
-      bSec++;
+      tSec++;
     }
     else
     {
-      bSec=0;
-      if(bMin<59)
+      tSec=0;
+      if(tMin<59)
       {
-        bMin++;
+        tMin++;
       }
       else
       {
-        bMin=0;
-        bHour++;
+        tMin=0;
+        tHour++;
       }
     }
-    if (flag==2) //break กินข้าว
+    if(flag == 1)
     {
-      bSum = String(wHour)+":"+String(wMin)+":"+String(wSec);
+      wSum = String(tHour)+":"+String(tMin)+":"+String(tSec);
+      Serial.print("Work Time : ");
+      Serial.println(wSum);
+    }
+    else if(flag == 2)
+    {
+      bSum = String(tHour)+":"+String(tMin)+":"+String(tSec);
       Serial.print("Break Time : ");
       Serial.println(bSum);
     }
-    else //break ห้องน้ำ
+    else if(flag == 3)
     {
-      btSum = String(wHour)+":"+String(wMin)+":"+String(wSec);
+      btSum = String(tHour)+":"+String(tMin)+":"+String(tSec);
       Serial.print("Toilet Time : ");
       Serial.println(btSum);
     }
   }
 }
-
 void setup() {
  
   Serial.begin(115200);
  
   timer = timerBegin(0, 80, true);
-  timerAttachInterrupt(timer, &onWork, true);
+  timerAttachInterrupt(timer, &onTimer, true);
   timerAlarmWrite(timer, 1000000, true);
-  timerAlarmDisable(timer);
-  timer2 = timerBegin(1, 80, true);
-  timerAttachInterrupt(timer2, &onBreak, true);
-  timerAlarmWrite(timer2, 1000000, true);
-  timerAlarmDisable(timer2);
+  timerAlarmEnable(timer);
 }
  
 void loop() {
-  if(flag == 1) 
+  if(flag == 0) //เลิกงาน
   {
-    if(true) //เงื่อนไขที่บอกว่า timer ปิดอยู่
-    {
-      timerAlarmEnable(timer);
-      timerAlarmDisable(timer2);
-    }
-    WorktimeCount();
-  }
-  else
-  {
-    if(true) //เงื่อนไขที่บอกว่า timer2 ปิดอยู่
-    {
-      timerAlarmEnable(timer2);
-      timerAlarmDisable(timer);
-    }
-    BreaktimeCount(flag);
-  }
-  if(flag ==1 && (bHour>0 || bMin>0 || bSec>0))
-  {
-    //ยิง bSum,btSum ขึ้น DB
-    bSec = 0;
-    bMin = 0;
-    bHour = 0;
+    /*-------ยิงข้อมูลเลิกงาน---------*/
+    tSec = 0;
+    tMin = 0;
+    tHour = 0;
+    wSum = "";
     bSum = "";
     btSum = "";
   }
-  if(flag ==0)
-  {
-    //ยิง wSumขึ้น DB
-    wSec = 0;
-    wMin = 0;
-    wHour = 0;
-    wSum = "";
-  }
+  if(flag == 1) timeCount(flag,wSum); //นับเวลาทำงาน
+  if(flag == 2) timeCount(flag,bSum); //นับเวลาเบรค
+  if(flag == 3) timeCount(flag,btSum); //นับเวลาเข้าห้องน้ำ
 }
