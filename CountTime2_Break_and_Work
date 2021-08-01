@@ -1,0 +1,145 @@
+volatile int workCounter;
+volatile int breakCounter;
+int wMin=0;
+int wSec=0;
+int wHour=0;
+int bMin=0;
+int bSec=0;
+int bHour=0;
+int flag=0; //บรรทัดนี้รับค่าฟังก์ชั่นจากการแตะบัตรมี 3 เหตุการ์ณ default 0 , work 1 , break 2 , break toilet 3
+String wSum; //work sum
+String bSum; //break sum
+String btSum; //break toilet sum
+hw_timer_t * timer = NULL;
+hw_timer_t * timer2 = NULL;
+portMUX_TYPE timerMux = portMUX_INITIALIZER_UNLOCKED;
+ 
+void IRAM_ATTR onWork() {
+  portENTER_CRITICAL_ISR(&timerMux);
+  workCounter++;
+  portEXIT_CRITICAL_ISR(&timerMux);
+}
+void IRAM_ATTR onBreak() {
+  portENTER_CRITICAL_ISR(&timerMux);
+  breakCounter++;
+  portEXIT_CRITICAL_ISR(&timerMux);
+}
+void WorktimeCount(){
+  if (workCounter > 0) {
+ 
+    portENTER_CRITICAL(&timerMux);
+    workCounter--;
+    portEXIT_CRITICAL(&timerMux);
+ 
+    if(wSec<59)
+    {
+      wSec++;
+    }
+    else
+    {
+      wSec=0;
+      if(wMin<59)
+      {
+        wMin++;
+      }
+      else
+      {
+        wMin=0;
+        wHour++;
+      }
+    }
+    wSum = String(wHour)+":"+String(wMin)+":"+String(wSec);
+    Serial.print("Work Time : ");
+    Serial.println(wSum);
+  }
+}
+void BreaktimeCount(int flag){
+  if (breakCounter > 0) {
+ 
+    portENTER_CRITICAL(&timerMux);
+    breakCounter--;
+    portEXIT_CRITICAL(&timerMux);
+ 
+    if(bSec<59)
+    {
+      bSec++;
+    }
+    else
+    {
+      bSec=0;
+      if(bMin<59)
+      {
+        bMin++;
+      }
+      else
+      {
+        bMin=0;
+        bHour++;
+      }
+    }
+    if (flag==2) //break กินข้าว
+    {
+      bSum = String(wHour)+":"+String(wMin)+":"+String(wSec);
+      Serial.print("Break Time : ");
+      Serial.println(bSum);
+    }
+    else //break ห้องน้ำ
+    {
+      btSum = String(wHour)+":"+String(wMin)+":"+String(wSec);
+      Serial.print("Toilet Time : ");
+      Serial.println(btSum);
+    }
+  }
+}
+
+void setup() {
+ 
+  Serial.begin(115200);
+ 
+  timer = timerBegin(0, 80, true);
+  timerAttachInterrupt(timer, &onWork, true);
+  timerAlarmWrite(timer, 1000000, true);
+  timerAlarmDisable(timer);
+  timer2 = timerBegin(1, 80, true);
+  timerAttachInterrupt(timer2, &onBreak, true);
+  timerAlarmWrite(timer2, 1000000, true);
+  timerAlarmDisable(timer2);
+}
+ 
+void loop() {
+  if(flag == 1) 
+  {
+    if(true) //เงื่อนไขที่บอกว่า timer ปิดอยู่
+    {
+      timerAlarmEnable(timer);
+      timerAlarmDisable(timer2);
+    }
+    WorktimeCount();
+  }
+  else
+  {
+    if(true) //เงื่อนไขที่บอกว่า timer2 ปิดอยู่
+    {
+      timerAlarmEnable(timer2);
+      timerAlarmDisable(timer);
+    }
+    BreaktimeCount(flag);
+  }
+  if(flag ==1 && (bHour>0 || bMin>0 || bSec>0))
+  {
+    //ยิง bSum,btSum ขึ้น DB
+    bSec = 0;
+    bMin = 0;
+    bHour = 0;
+    bSum = "";
+    btSum = "";
+  }
+  if(flag ==0)
+  {
+    //ยิง wSumขึ้น DB
+    wSec = 0;
+    wMin = 0;
+    wHour = 0;
+    wSum = "";
+  }
+}
